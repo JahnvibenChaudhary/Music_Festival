@@ -9,18 +9,42 @@ const {
 
 // Register customer
 async function registerCustomer(req, res) {
-    // Get name, email and password from the request
+    // Receive input
     const { name, email, password } = req.body;
 
-    // Validate the input
+    // Required fields check
     if (!name || !email || !password) {
         return res.status(400).json({
             message: "Name, email and password are required"
         });
     }
 
+    // Check name is not only spaces
+const trimmedName = name.trim();
+
+if (!trimmedName) {
+    return res.status(400).json({
+        message: "Name cannot be empty"
+    });
+}
+
+    // Format/strength validation - US03
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailRegex.test(email)) {
+        return res.status(400).json({
+            message: "Please provide a valid email address"
+        });
+    }
+
+    if (password.length < 8) {
+        return res.status(400).json({
+            message: "Password must be at least 8 characters long"
+        });
+    }
+
     try {
-        // Check whether the email already exists
+        // Check duplicate email
         const existingUser = await findUserByEmail(email);
 
         if (existingUser) {
@@ -29,12 +53,12 @@ async function registerCustomer(req, res) {
             });
         }
 
-        // Hash the password with bcrypt
+        // Hash password
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Create the customer user
+        // Create customer
         const userData = {
-            name: name,
+            name: trimmedName,
             email: email,
             password: hashedPassword,
             role: "customer"
@@ -42,7 +66,6 @@ async function registerCustomer(req, res) {
 
         const result = await createUser(userData);
 
-        // Send an appropriate response
         return res.status(201).json({
             message: "Customer registered successfully",
             userId: result.insertedId
@@ -60,41 +83,50 @@ async function registerCustomer(req, res) {
 
 // Login customer
 async function loginCustomer(req, res) {
-    // Get email and password from the request
     const { email, password } = req.body;
 
-    // Validate the input
     if (!email || !password) {
         return res.status(400).json({
             message: "Email and password are required"
         });
     }
 
+    // US03 email validation
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+if (!emailRegex.test(email)) {
+    return res.status(400).json({
+        message: "Please provide a valid email address"
+    });
+}
+
+// US03 password validation
+if (password.length < 8) {
+    return res.status(400).json({
+        message: "Password must be at least 8 characters long"
+    });
+}
+
     try {
-        // Find the user by email
         const user = await findUserByEmail(email);
 
-        // If user does not exist, reject login
         if (!user) {
             return res.status(401).json({
                 message: "Invalid email or password"
             });
         }
 
-        // Compare the supplied password with the stored hashed password
         const passwordMatch = await bcrypt.compare(
             password,
             user.password
         );
 
-        // If password is incorrect, reject login
         if (!passwordMatch) {
             return res.status(401).json({
                 message: "Invalid email or password"
             });
         }
 
-        // Generate JWT token
         const token = jwt.sign(
             {
                 userId: user._id,
@@ -107,7 +139,6 @@ async function loginCustomer(req, res) {
             }
         );
 
-        // Send successful login response
         return res.status(200).json({
             message: "Login successful",
             token: token
@@ -125,48 +156,56 @@ async function loginCustomer(req, res) {
 
 // Login administrator
 async function loginAdmin(req, res) {
-    // Get email and password from req.body
     const { email, password } = req.body;
 
-    // Validate the input
     if (!email || !password) {
         return res.status(400).json({
             message: "Email and password are required"
         });
     }
 
+    // US03 email validation
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+if (!emailRegex.test(email)) {
+    return res.status(400).json({
+        message: "Please provide a valid email address"
+    });
+}
+
+// US03 password validation
+if (password.length < 8) {
+    return res.status(400).json({
+        message: "Password must be at least 8 characters long"
+    });
+}
+
     try {
-        // Find the user by email
         const user = await findUserByEmail(email);
 
-        // If user doesn't exist
         if (!user) {
             return res.status(401).json({
                 message: "Invalid email or password"
             });
         }
 
-        // Compare supplied password with stored hashed password
         const passwordMatch = await bcrypt.compare(
             password,
             user.password
         );
 
-        // If password doesn't match
         if (!passwordMatch) {
             return res.status(401).json({
                 message: "Invalid email or password"
             });
         }
 
-        // Check user role
         if (user.role !== "administrator") {
             return res.status(403).json({
                 message: "Access denied. Administrator privileges required."
             });
         }
 
-        // Create JWT containing userId, email and role
         const token = jwt.sign(
             {
                 userId: user._id,
@@ -179,7 +218,6 @@ async function loginAdmin(req, res) {
             }
         );
 
-        // Return successful response
         return res.status(200).json({
             message: "Administrator login successful",
             token: token
@@ -195,7 +233,6 @@ async function loginAdmin(req, res) {
 }
 
 
-// Export functions
 module.exports = {
     registerCustomer,
     loginCustomer,
